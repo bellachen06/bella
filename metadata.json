@@ -1,0 +1,6 @@
+{
+  "name": "Learning and Quiz Platform",
+  "description": "An interactive learning website featuring course video management, progress tracking, and interactive quizzes, powered by Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

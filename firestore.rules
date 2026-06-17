@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net - Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE HELPER FUNCTIONS ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION SCHEMAS AND INVARIANTS ---
+
+    // Course Creation/Update Schema Validation
+    function isValidCourse(data) {
+      return data.keys().hasAll(['id', 'title', 'description', 'videoUrl', 'thumbnailUrl', 'duration', 'category', 'difficulty'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 200
+        && data.description is string && data.description.size() <= 2000
+        && data.videoUrl is string && data.videoUrl.size() <= 1000
+        && data.thumbnailUrl is string && data.thumbnailUrl.size() <= 1000
+        && data.duration is string && data.duration.size() <= 20
+        && data.category is string && data.category.size() <= 100
+        && data.difficulty is string && (data.difficulty == 'Beginner' || data.difficulty == 'Intermediate' || data.difficulty == 'Advanced');
+    }
+
+    // Quiz Schema Validation
+    function isValidQuiz(data) {
+      return data.keys().hasAll(['id', 'courseId', 'title', 'questions'])
+        && data.id is string && data.id.size() <= 128
+        && data.courseId is string && data.courseId.size() <= 128
+        && data.title is string && data.title.size() <= 200
+        && data.questions is list && data.questions.size() <= 50;
+    }
+
+    // User Progress Metadata Validation
+    function isValidUserProgress(data) {
+      return data.keys().hasAll(['userId', 'completedVideos', 'quizScores', 'updatedAt'])
+        && data.userId is string && data.userId.size() <= 128
+        && data.completedVideos is list && data.completedVideos.size() <= 1000
+        && data.quizScores is map;
+    }
+
+    // --- COLLECTION RULES MATCHES ---
+
+    // Courses collection
+    match /courses/{courseId} {
+      allow read: if true; // Publicly readable for dynamic content delivery
+      
+      // Course video management: only authenticated users can edit or create courses
+      allow create: if isSignedIn() 
+        && isValidId(courseId)
+        && isValidCourse(incoming())
+        && incoming().id == courseId;
+        
+      allow update: if isSignedIn()
+        && isValidCourse(incoming())
+        && incoming().id == courseId;
+        
+      allow delete: if isSignedIn();
+    }
+
+    // Quizzes collection
+    match /quizzes/{quizId} {
+      allow read: if true; // Students can access and answer quizzes
+      
+      allow create: if isSignedIn()
+        && isValidId(quizId)
+        && isValidQuiz(incoming())
+        && incoming().id == quizId;
+        
+      allow update: if isSignedIn()
+        && isValidQuiz(incoming())
+        && incoming().id == quizId;
+        
+      allow delete: if isSignedIn();
+    }
+
+    // Private User Progress collection (Protected PII / Progress scores)
+    match /userProgress/{userId} {
+      // Direct reads and list queries restricted exclusively to the authenticated owner
+      allow read: if isOwner(userId);
+      
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProgress(incoming())
+        && incoming().userId == userId;
+        
+      allow update: if isOwner(userId)
+        && isValidUserProgress(incoming())
+        && incoming().userId == userId;
+        
+      allow delete: if isOwner(userId);
+    }
+  }
+}

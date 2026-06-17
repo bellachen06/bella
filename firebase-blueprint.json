@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "Course": {
+      "title": "Course",
+      "description": "Represents research or learning course with an embedded video track",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "videoUrl": { "type": "string", "format": "uri" },
+        "thumbnailUrl": { "type": "string" },
+        "duration": { "type": "string" },
+        "category": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "videoUrl", "difficulty"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Represents an interactive quiz comprising questions for a specific course",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "courseId": { "type": "string" },
+        "title": { "type": "string" },
+        "questions": {
+          "type": "array",
+          "description": "List of quiz questions with options and answer keys"
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["courseId", "questions"]
+    },
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "Records user completion status and history of quiz performance",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "completedVideos": { "type": "array" },
+        "quizScores": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Main curriculum contents containing details on video chapters"
+    },
+    "/quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Assessments tied to a specific course page"
+    },
+    "/userProgress/{userId}": {
+      "schema": "UserProgress",
+      "description": "Durable private learning status and dashboard grades for each user"
+    }
+  }
+}
